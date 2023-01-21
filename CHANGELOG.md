@@ -96,6 +96,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj log` timestamp format now accepts `.utc()` to convert a timestamp to UTC.
 
+* `jj next` and `jj prev` are added, these allow you to traverse the history
+  in a linear style, see [#NNN](https://github.com/martinvonz/jj/issues/NNN)
+  for further pending improvements.
+
 ### Fixed bugs
 
 * `jj config set --user` and `jj config edit --user` can now be used outside of any repository.
