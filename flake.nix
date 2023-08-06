@@ -128,6 +128,9 @@
           cargo-insta
           cargo-nextest
           cargo-watch
+
+          # buck2 related tools and trinkets
+          buck2 reindeer clang_16 lld_16
         ];
 
         shellHook = ''
