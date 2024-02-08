@@ -514,6 +514,33 @@ conflict is considered fully resolved when there are no conflict markers left.
 
 ## Git settings
 
+### Default remotes for `jj git fetch` and `jj git push`
+
+By default, if a single remote exists it is used for `jj git fetch` and `jj git
+push`; however if multiple remotes exist, the default remote is assumed to be
+named `"origin"`, just like in Git. Sometimes this is undesirable, e.g. when you
+want to fetch from a different remote than you push to, such as a GitHub fork.
+
+To change this behavior, you can modify the [repository
+configuration](#config-files-and-toml) variable `git.fetch`, which can be a
+single remote, or a list of remotes to fetch from multiple places:
+
+```sh
+jj config set --repo git.fetch "upstream"
+jj config set --repo git.fetch '["origin", "upstream"]'
+```
+
+Similarly, you can also set the variable `git.push` to cause `jj git push` to
+push to a different remote. For example, to push to GitHub by default, you can:
+
+```sh
+jj config set --repo git.push "github"
+```
+
+Note that unlike `git.fetch`, `git.push` can currently only be a single remote.
+This is not a hard limitation, and could be changed in the future if there is
+demand.
+
 ### Automatic local branch creation
 
 When `jj` imports a new remote-tracking branch from Git, it can also create a
