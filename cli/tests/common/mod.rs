@@ -92,6 +92,7 @@ impl TestEnvironment {
         }
         cmd.env("RUST_BACKTRACE", "1");
         cmd.env("HOME", self.home_dir.to_str().unwrap());
+        cmd.env("TZ", "UTC-11:00");
         cmd.env("JJ_CONFIG", self.config_path.to_str().unwrap());
         cmd.env("JJ_USER", "Test User");
         cmd.env("JJ_EMAIL", "test.user@example.com");

@@ -491,9 +491,9 @@ fn test_workspaces_current_op_discarded_by_other() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["obslog"]);
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(stdout, @r###"
-    @  znkkpsqq test.user@example.com 2001-02-03 04:05:16.000 +07:00 secondary@ e5b7d155
+    @  znkkpsqq test.user@example.com 2001-02-03 08:05:16 secondary@ e5b7d155
     │  (no description set)
-    ◉  znkkpsqq hidden test.user@example.com 2001-02-03 04:05:16.000 +07:00 9d040f9a
+    ◉  znkkpsqq hidden test.user@example.com 2001-02-03 08:05:16 9d040f9a
        (empty) (no description set)
     "###);
 }

@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * In the templating language, Timestamps now have a `.local()` method for
   converting to the local timezone.
 
+* Timestamps are now shown in local timezone and without milliseconds and
+  timezone offset by default.
+
 * `jj next/prev` now infer `--edit` when you're already editing a non-head
   commit (a commit with children).
 
