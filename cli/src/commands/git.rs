@@ -1089,7 +1089,7 @@ fn cmd_git_push(
         branch_updates,
         force_pushed_branches,
     };
-    with_remote_git_callbacks(ui, |cb| {
+    let remote_message = with_remote_git_callbacks(ui, |cb| {
         git::push_branches(tx.mut_repo(), &git_repo, &remote, &targets, cb)
     })
     .map_err(|err| match err {
@@ -1101,6 +1101,11 @@ fn cmd_git_push(
         ),
         _ => user_error(err),
     })?;
+    if let Some(remote_message) = remote_message {
+        for line in remote_message.lines() {
+            writeln!(ui.stderr(), "remote: {line}")?;
+        }
+    }
     tx.finish(ui, tx_description)?;
     Ok(())
 }

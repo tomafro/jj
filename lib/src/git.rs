@@ -1223,7 +1223,7 @@ pub fn push_branches(
     remote_name: &str,
     targets: &GitBranchPushTargets,
     callbacks: RemoteCallbacks<'_>,
-) -> Result<(), GitPushError> {
+) -> Result<Option<String>, GitPushError> {
     let ref_updates = targets
         .branch_updates
         .iter()
@@ -1233,7 +1233,7 @@ pub fn push_branches(
             new_target: update.new_target.clone(),
         })
         .collect_vec();
-    push_updates(git_repo, remote_name, &ref_updates, callbacks)?;
+    let remote_message = push_updates(git_repo, remote_name, &ref_updates, callbacks)?;
 
     // TODO: add support for partially pushed refs? we could update the view
     // excluding rejected refs, but the transaction would be aborted anyway
@@ -1248,7 +1248,7 @@ pub fn push_branches(
         mut_repo.set_remote_branch(branch_name, remote_name, new_remote_ref);
     }
 
-    Ok(())
+    Ok(remote_message)
 }
 
 /// Pushes the specified Git refs without updating the repo view.
@@ -1257,7 +1257,7 @@ pub fn push_updates(
     remote_name: &str,
     updates: &[GitRefUpdate],
     callbacks: RemoteCallbacks<'_>,
-) -> Result<(), GitPushError> {
+) -> Result<Option<String>, GitPushError> {
     let mut temp_refs = vec![];
     let mut qualified_remote_refs = vec![];
     let mut refspecs = vec![];
@@ -1310,7 +1310,7 @@ fn push_refs(
     qualified_remote_refs: &[&str],
     refspecs: &[String],
     callbacks: RemoteCallbacks<'_>,
-) -> Result<(), GitPushError> {
+) -> Result<Option<String>, GitPushError> {
     if remote_name == REMOTE_NAME_FOR_LOCAL_GIT_REPO {
         return Err(GitPushError::RemoteReservedForLocalGitRepo);
     }
@@ -1322,11 +1322,21 @@ fn push_refs(
         }
     })?;
     let mut remaining_remote_refs: HashSet<_> = qualified_remote_refs.iter().copied().collect();
+    let mut remote_message: Option<String> = None;
     let mut push_options = git2::PushOptions::new();
     let mut proxy_options = git2::ProxyOptions::new();
     proxy_options.auto();
     push_options.proxy_options(proxy_options);
     let mut callbacks = callbacks.into_git();
+    callbacks.sideband_progress(|progress| {
+        let message = String::from_utf8_lossy(progress);
+        if let Some(remote_message) = &mut remote_message {
+            remote_message.push_str(&message);
+        } else {
+            remote_message = Some(message.to_string());
+        }
+        true
+    });
     callbacks.push_update_reference(|refname, status| {
         // The status is Some if the ref update was rejected
         if status.is_none() {
@@ -1345,7 +1355,7 @@ fn push_refs(
         })?;
     drop(push_options);
     if remaining_remote_refs.is_empty() {
-        Ok(())
+        Ok(remote_message)
     } else {
         Err(GitPushError::RefUpdateRejected(
             remaining_remote_refs

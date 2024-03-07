@@ -2383,7 +2383,7 @@ fn test_push_branches_success() {
         &targets,
         git::RemoteCallbacks::default(),
     );
-    assert_eq!(result, Ok(()));
+    assert_eq!(result, Ok(None));
 
     // Check that the ref got updated in the source repo
     let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
@@ -2453,7 +2453,7 @@ fn test_push_branches_deletion() {
         &targets,
         git::RemoteCallbacks::default(),
     );
-    assert_eq!(result, Ok(()));
+    assert_eq!(result, Ok(None));
 
     // Check that the ref got deleted in the source repo
     assert!(source_repo.find_reference("refs/heads/main").is_err());
@@ -2511,7 +2511,7 @@ fn test_push_branches_mixed_deletion_and_addition() {
         &targets,
         git::RemoteCallbacks::default(),
     );
-    assert_eq!(result, Ok(()));
+    assert_eq!(result, Ok(None));
 
     // Check that the topic ref got updated in the source repo
     let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
@@ -2606,7 +2606,7 @@ fn test_push_branches_not_fast_forward_with_force() {
         &targets,
         git::RemoteCallbacks::default(),
     );
-    assert_eq!(result, Ok(()));
+    assert_eq!(result, Ok(None));
 
     // Check that the ref got updated in the source repo
     let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
@@ -2633,7 +2633,7 @@ fn test_push_updates_success() {
         }],
         git::RemoteCallbacks::default(),
     );
-    assert_eq!(result, Ok(()));
+    assert_eq!(result, Ok(None));
 
     // Check that the ref got updated in the source repo
     let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
