@@ -54,8 +54,8 @@ pub(crate) fn cmd_commit(
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
-    let advanceable_branch = workspace_command
-        .get_advanceable_branch(&**workspace_command.repo(), commit.parent_ids())?;
+    let advanceable_branches = workspace_command
+        .get_advanceable_branches(&**workspace_command.repo(), commit.parent_ids());
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_selector =
         workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;
@@ -122,9 +122,8 @@ new working-copy commit.
             )
             .write()?;
 
-        if let Some(branch) = advanceable_branch {
-            // Move the branch to the parent of the new commit.
-            tx.advance_branch(branch, new_commit.id());
+        if !advanceable_branches.is_empty() {
+            tx.advance_branches(advanceable_branches, new_commit.id());
         }
 
         for workspace_id in workspace_ids {

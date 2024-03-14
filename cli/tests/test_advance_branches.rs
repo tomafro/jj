@@ -204,15 +204,7 @@ fn test_advance_branches_overrides() {
     "###);
 }
 
-// TODO(emesterhazy): I'm not actually sure this is how I want to handle
-//   multiple branches pointing to @-. The problem is that it can be tricky to
-//   resolve since you have to move all of the branches except one to fix the
-//   ambiguity. Maybe instead we should advance all branches, but for colocated
-//   repos only set Git HEAD to a branch if there is one candidate, and detach
-//   otherwise.
-// If multiple branches point to @-, the user must move all but one of them to
-// disambiguate which branch should advance. The user can also disable
-// advance-branches for all but one of the branches to resolve the ambiguity.
+// If multiple eligible branches point to @-, all of them will be advanced.
 #[test]
 fn test_advance_branches_ambiguity() {
     let test_env = TestEnvironment::default();
@@ -234,9 +226,11 @@ fn test_advance_branches_ambiguity() {
     ◉  000000000000 br:{first_branch second_branch} dsc:
     "###);
 
-    let err = test_env.jj_cmd_failure(&workspace_path, &["commit", "-m=first"]);
-    insta::assert_snapshot!(err, @r###"
-    Error: Refusing to advance multiple branches: first_branch, second_branch
-    Hint: Use jj new and jj branch to manually move a branch and resolve the ambiguity.
+    // Both branches are eligible and both will advance.
+    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=first"]);
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    @  f307e5d9f90b br:{} dsc:
+    ◉  0fca5c9228e6 br:{first_branch second_branch} dsc: first
+    ◉  000000000000 br:{} dsc:
     "###);
 }

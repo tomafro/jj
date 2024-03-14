@@ -1310,19 +1310,19 @@ Then run `jj squash` to move the resolution into the conflicted commit."#,
         Ok(())
     }
 
-    /// If enabled by the user or repository config, identifies a single branch
-    /// in `repo` pointing to any of the `from` commits which should be advanced
-    /// to the parent (aka the child of one of the `from` commits) of a new
-    /// commit. The branch is not moved until
-    /// `WorkspaceCommandTransaction::advance_branch()` is called with the
-    /// `AdvanceableBranch` returned by this function.
+    /// If enabled by the user or repository config, identifies branches in
+    /// `repo` pointing to any of the `from` commits which should be advanced to
+    /// the parent (aka the child of one of the `from` commits) of a new commit.
+    /// Branches are not moved until
+    /// `WorkspaceCommandTransaction::advance_branches()` is called with the
+    /// `AdvanceableBranch`s returned by this function.
     ///
-    /// Returns an error if more than one branch would be advanced.
-    pub fn get_advanceable_branch<'a>(
+    /// Returns an empty `std::Vec` if no branches are eligible to advance.
+    pub fn get_advanceable_branches<'a>(
         &self,
         repo: &impl Repo,
         from: impl IntoIterator<Item = &'a CommitId>,
-    ) -> Result<Option<AdvanceableBranch>, CommandError> {
+    ) -> Vec<AdvanceableBranch> {
         let advance_branches = self.settings.advance_branches();
         let overrides = self.settings.advance_branches_overrides();
         let allow_branch = |branch: &str| {
@@ -1331,7 +1331,7 @@ Then run `jj squash` to move the resolution into the conflicted commit."#,
         };
         // Return early if we know that there's no work to do.
         if !advance_branches && overrides.is_empty() {
-            return Ok(None);
+            return Vec::new();
         }
 
         let mut advanceable_branches = Vec::new();
@@ -1347,15 +1347,7 @@ Then run `jj squash` to move the resolution into the conflicted commit."#,
             }
         }
 
-        if advanceable_branches.len() > 1 {
-            let branches = advanceable_branches.iter().map(|b| &b.name).join(", ");
-            return Err(user_error_with_hint(
-                format!("Refusing to advance multiple branches: {}", branches),
-                "Use jj new and jj branch to manually move a branch and resolve the ambiguity.",
-            ));
-        }
-
-        Ok(advanceable_branches.pop())
+        advanceable_branches
     }
 }
 
@@ -1440,30 +1432,32 @@ impl WorkspaceCommandTransaction<'_> {
         self.tx
     }
 
-    /// Moves the `branch` from an old commit it's associated with (configured
-    /// by `get_advanceable_branch`) to the `move_to` commit. If the branch
-    /// is conflicted before the update, it will remain conflicted after the
-    /// update, but the conflict will involve the `move_to` commit instead
-    /// of the old commit.
-    pub fn advance_branch(&mut self, branch: AdvanceableBranch, move_to: &CommitId) {
-        // We are going to remove the old commit and add the new commit. The
-        // removed commit must be listed first in order for the `MergeBuilder`
-        // to recognize that it's being removed.
-        let remove_add = [Some(branch.old_commit_id), Some(move_to.clone())];
-        let new_target = RefTarget::from_merge(
-            MergeBuilder::from_iter(
-                branch
-                    .old_target
-                    .as_merge()
-                    .iter()
-                    .chain(&remove_add)
-                    .cloned(),
-            )
-            .build()
-            .simplify(),
-        );
-        self.mut_repo()
-            .set_local_branch_target(&branch.name, new_target);
+    /// Moves each branch in `branches` from an old commit it's associated with
+    /// (configured by `get_advanceable_branches`) to the `move_to` commit. If
+    /// the branch is conflicted before the update, it will remain conflicted
+    /// after the update, but the conflict will involve the `move_to` commit
+    /// instead of the old commit.
+    pub fn advance_branches(&mut self, branches: Vec<AdvanceableBranch>, move_to: &CommitId) {
+        for branch in branches {
+            // We are going to remove the old commit and add the new commit. The
+            // removed commit must be listed first in order for the `MergeBuilder`
+            // to recognize that it's being removed.
+            let remove_add = [Some(branch.old_commit_id), Some(move_to.clone())];
+            let new_target = RefTarget::from_merge(
+                MergeBuilder::from_iter(
+                    branch
+                        .old_target
+                        .as_merge()
+                        .iter()
+                        .chain(&remove_add)
+                        .cloned(),
+                )
+                .build()
+                .simplify(),
+            );
+            self.mut_repo()
+                .set_local_branch_target(&branch.name, new_target);
+        }
     }
 }
 
