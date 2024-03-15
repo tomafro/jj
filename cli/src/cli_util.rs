@@ -86,7 +86,7 @@ use crate::git_util::{
     is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
 };
 use crate::merge_tools::{DiffEditor, MergeEditor, MergeToolConfigError};
-use crate::operation_templater::OperationTemplateLanguage;
+use crate::operation_templater::{OperationTemplateLanguage, OperationTemplateLanguageExtension};
 use crate::template_builder::TemplateLanguage;
 use crate::template_parser::TemplateAliasesMap;
 use crate::templater::Template;
@@ -189,6 +189,7 @@ pub struct CommandHelper {
     settings: UserSettings,
     layered_configs: LayeredConfigs,
     commit_template_extension: Option<Arc<dyn CommitTemplateLanguageExtension>>,
+    operation_template_extension: Option<Arc<dyn OperationTemplateLanguageExtension>>,
     maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
     store_factories: StoreFactories,
     working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>>,
@@ -260,7 +261,11 @@ impl CommandHelper {
         root_op_id: &OperationId,
         current_op_id: Option<&OperationId>,
     ) -> Result<Box<dyn Template<Operation>>, CommandError> {
-        let language = OperationTemplateLanguage::new(root_op_id, current_op_id);
+        let language = OperationTemplateLanguage::new(
+            root_op_id,
+            current_op_id,
+            self.operation_template_extension.as_deref(),
+        );
         self.parse_template(ui, &language, template_text)
     }
 
@@ -2328,6 +2333,7 @@ pub struct CliRunner {
     store_factories: Option<StoreFactories>,
     working_copy_factories: Option<HashMap<String, Box<dyn WorkingCopyFactory>>>,
     commit_template_extension: Option<Arc<dyn CommitTemplateLanguageExtension>>,
+    operation_template_extension: Option<Arc<dyn OperationTemplateLanguageExtension>>,
     dispatch_fn: CliDispatchFn,
     start_hook_fns: Vec<CliDispatchFn>,
     process_global_args_fns: Vec<ProcessGlobalArgsFn>,
@@ -2350,6 +2356,7 @@ impl CliRunner {
             store_factories: None,
             working_copy_factories: None,
             commit_template_extension: None,
+            operation_template_extension: None,
             dispatch_fn: Box::new(crate::commands::run_command),
             start_hook_fns: vec![],
             process_global_args_fns: vec![],
@@ -2388,6 +2395,14 @@ impl CliRunner {
         commit_template_extension: Box<dyn CommitTemplateLanguageExtension>,
     ) -> Self {
         self.commit_template_extension = Some(commit_template_extension.into());
+        self
+    }
+
+    pub fn set_operation_template_extension(
+        mut self,
+        operation_template_extension: Box<dyn OperationTemplateLanguageExtension>,
+    ) -> Self {
+        self.operation_template_extension = Some(operation_template_extension.into());
         self
     }
 
@@ -2511,6 +2526,7 @@ impl CliRunner {
             settings,
             layered_configs,
             commit_template_extension: self.commit_template_extension,
+            operation_template_extension: self.operation_template_extension,
             maybe_workspace_loader,
             store_factories: self.store_factories.unwrap_or_default(),
             working_copy_factories,
