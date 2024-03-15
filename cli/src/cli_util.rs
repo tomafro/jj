@@ -86,6 +86,7 @@ use crate::git_util::{
     is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
 };
 use crate::merge_tools::{DiffEditor, MergeEditor, MergeToolConfigError};
+use crate::operation_templater::OperationTemplateLanguage;
 use crate::template_builder::TemplateLanguage;
 use crate::template_parser::TemplateAliasesMap;
 use crate::templater::Template;
@@ -250,6 +251,17 @@ impl CommandHelper {
     ) -> Result<Box<dyn Template<L::Context> + 'a>, CommandError> {
         let aliases = self.load_template_aliases(ui)?;
         Ok(template_builder::parse(language, template_text, &aliases)?)
+    }
+
+    pub fn parse_operation_template(
+        &self,
+        ui: &Ui,
+        template_text: &str,
+        root_op_id: &OperationId,
+        current_op_id: Option<&OperationId>,
+    ) -> Result<Box<dyn Template<Operation>>, CommandError> {
+        let language = OperationTemplateLanguage::new(root_op_id, current_op_id);
+        self.parse_template(ui, &language, template_text)
     }
 
     pub fn workspace_loader(&self) -> Result<&WorkspaceLoader, CommandError> {
