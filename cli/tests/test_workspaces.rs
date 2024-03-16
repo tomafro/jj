@@ -417,10 +417,20 @@ fn test_workspaces_current_op_discarded_by_other() {
     let main_path = test_env.env_root().join("main");
     let secondary_path = test_env.env_root().join("secondary");
 
-    std::fs::write(main_path.join("file"), "contents\n").unwrap();
+    std::fs::write(main_path.join("file1"), "base\n").unwrap();
+    std::fs::write(main_path.join("file2"), "base\n").unwrap();
+    test_env.jj_cmd_ok(&main_path, &["new"]);
+    std::fs::write(main_path.join("file1"), "main\n").unwrap();
+    std::fs::write(main_path.join("file2"), "main\n").unwrap();
     test_env.jj_cmd_ok(&main_path, &["new"]);
 
     test_env.jj_cmd_ok(&main_path, &["workspace", "add", "../secondary"]);
+    test_env.jj_cmd_ok(
+        &secondary_path,
+        &["sparse", "set", "--clear", "--add=file1"],
+    );
+    // Also leave an unsnapshotted write in the secondary working copy
+    std::fs::write(secondary_path.join("file1"), "secondary\n").unwrap();
 
     // Create an op by abandoning the parent commit. Importantly, that commit also
     // changes the target tree in the secondary workspace.
@@ -436,11 +446,13 @@ fn test_workspaces_current_op_discarded_by_other() {
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
-    @  f1dc1bf396 abandon commit acb4b92517b20aa4ee2f3dc58d7c2373754d0b29a3df310dbabda5813f13c3730d28d6a1b6dd37f3b0c8c5c9adaead5dab242ffe7ecc2e5a6a534fe4c6639f89
-    ◉  47f1ad5e1a Create initial working-copy commit in workspace secondary
-    ◉  fd918ce207 add workspace 'secondary'
-    ◉  5927500c4b new empty commit
-    ◉  c86cb4fdf4 snapshot working copy
+    @  b9f68d402f abandon commit e07098d7d9462debccc1b3ca930a8cc76d32415dc2e479b8e8bc44c2c11e312064373bf7ac049b47ff5e57733d8cc0cf5ae8787491bc5594940c5db223564e3f
+    ◉  eea8f56922 Create initial working-copy commit in workspace secondary
+    ◉  181aa0d1db add workspace 'secondary'
+    ◉  370b2fadcc new empty commit
+    ◉  95927f7469 snapshot working copy
+    ◉  048400612c new empty commit
+    ◉  a6a8f9b714 snapshot working copy
     ◉  17dbb2fe40 add workspace 'default'
     ◉  cecfee9647 initialize repo
     ◉  0000000000
@@ -451,9 +463,10 @@ fn test_workspaces_current_op_discarded_by_other() {
     test_env.jj_cmd_ok(&main_path, &["util", "gc", "--expire=now"]);
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    @  6dc8f254cd3c default@
-    │ ◉  4278b78fb503 secondary@
+    ◉  750a5e564a16 secondary@
+    │ @  400f6be894ca default@
     ├─╯
+    ◉  b8c8f709d10f
     ◉  000000000000
     "###);
 
@@ -466,34 +479,42 @@ fn test_workspaces_current_op_discarded_by_other() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
     insta::assert_snapshot!(stderr, @r###"
-    Failed to read working copy's current operation; attempting recovery. Error message from read attempt: Object 47f1ad5e1adfaa1e9863181e6e45ae12b9db553e82bde82e278c0c6288053c833b4039a5baf2415871964bcdcd4b7875692979e66f2ec18bfc3896355091cf53 of type operation not found
-    Created and checked out recovery commit df3e46148439
+    Failed to read working copy's current operation; attempting recovery. Error message from read attempt: Object eea8f56922ab6346e8198a46db70807eba8d379f02d7806e2101776cb72af3685aa6a09a9f71d004a7c8d6e2cbe8cafacae5953f69ba879daf0ef491e3af36c3 of type operation not found
+    Created and checked out recovery commit 6bd2381b4d51
     "###);
     insta::assert_snapshot!(stdout, @"");
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ◉  54400d0c58b7 secondary@
-    ◉  4278b78fb503
-    │ @  6dc8f254cd3c default@
+    ◉  811331858328 secondary@
+    ◉  750a5e564a16
+    │ @  400f6be894ca default@
     ├─╯
+    ◉  b8c8f709d10f
     ◉  000000000000
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["st"]);
     insta::assert_snapshot!(stderr, @"");
+    // TODO: file2 should still be there
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
-    A file
-    Working copy : znkkpsqq 54400d0c (no description set)
-    Parent commit: pmmvwywv 4278b78f (empty) (no description set)
+    M file1
+    D file2
+    Working copy : kmkuslsw 81133185 (no description set)
+    Parent commit: rzvqmyuk 750a5e56 (empty) (no description set)
+    "###);
+    // file1 should have the same contents it had before (not reset to the base
+    // contents)
+    insta::assert_snapshot!(std::fs::read_to_string(secondary_path.join("file1")).unwrap(), @r###"
+    secondary
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["obslog"]);
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(stdout, @r###"
-    @  znkkpsqq test.user@example.com 2001-02-03 04:05:16.000 +07:00 secondary@ 54400d0c
+    @  kmkuslsw test.user@example.com 2001-02-03 04:05:18.000 +07:00 secondary@ 81133185
     │  (no description set)
-    ◉  znkkpsqq hidden test.user@example.com 2001-02-03 04:05:16.000 +07:00 df3e4614
+    ◉  kmkuslsw hidden test.user@example.com 2001-02-03 04:05:18.000 +07:00 6bd2381b
        (empty) (no description set)
     "###);
 }
