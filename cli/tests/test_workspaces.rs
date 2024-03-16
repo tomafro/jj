@@ -485,7 +485,7 @@ fn test_workspaces_current_op_discarded_by_other() {
     insta::assert_snapshot!(stdout, @"");
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ◉  811331858328 secondary@
+    ◉  8fad4459de15 secondary@
     ◉  750a5e564a16
     │ @  400f6be894ca default@
     ├─╯
@@ -495,12 +495,10 @@ fn test_workspaces_current_op_discarded_by_other() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["st"]);
     insta::assert_snapshot!(stderr, @"");
-    // TODO: file2 should still be there
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
     M file1
-    D file2
-    Working copy : kmkuslsw 81133185 (no description set)
+    Working copy : kmkuslsw 8fad4459 (no description set)
     Parent commit: rzvqmyuk 750a5e56 (empty) (no description set)
     "###);
     // file1 should have the same contents it had before (not reset to the base
@@ -512,7 +510,7 @@ fn test_workspaces_current_op_discarded_by_other() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["obslog"]);
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(stdout, @r###"
-    @  kmkuslsw test.user@example.com 2001-02-03 04:05:18.000 +07:00 secondary@ 81133185
+    @  kmkuslsw test.user@example.com 2001-02-03 04:05:18.000 +07:00 secondary@ 8fad4459
     │  (no description set)
     ◉  kmkuslsw hidden test.user@example.com 2001-02-03 04:05:18.000 +07:00 6bd2381b
        (empty) (no description set)
